@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
 function normalize {
-  echo $@ | awk '{print tolower($0)}' | sed -E 's/[^[:alnum:]]+/_/g'
+  echo "$@" | awk '{print tolower($0)}' | sed -E 's/[^[:alnum:]]+/_/g'
 }
 
 function browse {
   if uname -a | grep -q Darwin; then
-    open $@
+    open "$@"
   else
-    xdg-open $@
+    xdg-open "$@"
   fi
 }
 
@@ -23,36 +23,40 @@ function chalurl {
 }
 
 function chalname {
-  echo "$(curl $(seturl $1) 2>/dev/null | grep "challenges/$2'" | cut -d\> -f2 | cut -d\< -f1)"
+  curl "$(seturl "$1")" 2>/dev/null | grep "challenges/$2'" | cut -d\> -f2 | cut -d\< -f1
 }
 
 function chalexists {
-  curl $(seturl $1) 2>/dev/null | grep -q "challenges/$2'"
+  curl "$(seturl "$1")" 2>/dev/null | grep -q "challenges/$2'"
 }
 
 function start {
   local SET=$1
   local CHAL=$2
 
-  local NAME="$(chalname $SET $CHAL)"
-  local PROJ="cryptopals_${SET}_${CHAL}_$(normalize $NAME)"
+  local NAME
+  NAME="$(chalname "$SET" "$CHAL")"
+  local PROJ
+  PROJ="cryptopals_${SET}_${CHAL}_$(normalize "$NAME")"
 
-  cargo new $PROJ --lib
+  cargo new "$PROJ" --lib
   local FILE="${PROJ}/src/lib.rs"
 
   echo "// Cryptopals crypto challenge - set $SET challenge $CHAL
-// $(chalurl $SET $CHAL)
+// $(chalurl "$SET" "$CHAL")
 
-$(cat $FILE)" > $FILE.tmp
-  mv $FILE.tmp $FILE
+$(cat "$FILE")" > "$FILE.tmp"
+  mv "$FILE.tmp" "$FILE"
 
-  browse $(chalurl $SET $CHAL)
-  $EDITOR $FILE
+  browse "$(chalurl "$SET" "$CHAL")"
+  $EDITOR "$FILE"
 }
 
 function next {
-  local LATEST_SET=$(ls | grep cryptopals_ | cut -d_ -f2 | uniq | sort -g | tail -1)
-  local LATEST_CHAL=$(ls | grep cryptopals_$LATEST_SET | cut -d_ -f3 | sort -g | tail -1)
+  local LATEST_SET
+  LATEST_SET=$(find . -type d -name "cryptopals_*" | cut -d_ -f2 | uniq | sort -g | tail -1)
+  local LATEST_CHAL
+  LATEST_CHAL=$(find . -type d -name "cryptopals_$LATEST_SET*" | cut -d_ -f3 | sort -g | tail -1)
 
   if [[ "" == "$LATEST_CHAL" ]]; then
     echo "No challenges found, starting at 1-1"
@@ -62,7 +66,7 @@ function next {
 
   local NEXT_SET=$LATEST_SET
   local NEXT_CHAL=$((LATEST_CHAL + 1))
-  if ! chalexists $LATEST_SET $NEXT_CHAL; then
+  if ! chalexists "$LATEST_SET" "$NEXT_CHAL"; then
     NEXT_SET=$((LATEST_SET + 1))
   fi
 
